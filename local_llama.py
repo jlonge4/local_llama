@@ -12,7 +12,7 @@ from typing import Optional, List, Mapping, Any
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from llama_index import LangchainEmbedding, ServiceContext
 
-MODEL_NAME = 'model_name'
+MODEL_NAME = 'GPT4All-13B-snoozy.ggml.q4_0.bin'
 MODEL_PATH = 'path_to_model'
 
 #Number of threads to use 
