@@ -1,6 +1,6 @@
 # local_llama
 
-Interested in chatting with your PDFs entirely offline and free from OpenAI dependencies? Then you're in the right place. I made my other project, gpt_chatwithPDF with the ultimate goal of local_llama in mind, this assumes the same functinoality as that project but is, local and can be run in airplane mode.. 
+Interested in chatting with your PDFs entirely offline and free from OpenAI dependencies? Then you're in the right place. I made my other project, gpt_chatwithPDF with the ultimate goal of local_llama in mind, this assumes the same functinoality as that project but is, local and can be run in airplane mode.. Drop a star if you like it!
 
 DISCLAIMER: This is an experimental repo, not an end all be all for your solution. It is meant as a way forward towards many use cases for local offline use of LLMs.
 
