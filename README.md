@@ -6,8 +6,9 @@ DISCLAIMER: This is an experimental repo, not an end all be all for your solutio
 
 ## Installation
 
-On windows you have to have Visual Studio with a C compiler installed. Secondly you need a model, I used GPT4All-13B-snoozy.ggml.q4_0.bin, however any ggml should work.
-
+On windows you have to have Visual Studio with a C compiler installed. 
+Secondly you need a model, I used GPT4All-13B-snoozy.ggml.q4_0.bin, however any ggml should work. 
+Run pip install -r requirements.txt
 
 ## Usage
 
