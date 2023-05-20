@@ -15,6 +15,21 @@ Run pip install -r requirements.txt
 
 Use the command python -m streamlit run "path/to/project/local_llama.py". This will start the app in your browser. Once you have uploaded your PDFs, refresh the browser, select a manual, and ask away!
 
+CLI output as an example for inference time running on my alienware x14 with 3060:
+
+|                                     TIMES                                                   |
+| :-----------------------------------------------------------------------------------------: |
+|/GPT4All-13B-snoozy.ggml.q4_0.bin                                                            |
+|llama_model_load_internal: format     = ggjt v2 (latest)                                     |
+|llama_model_load_internal: n_vocab    = 32000                                                |
+|llama_model_load_internal: n_ctx      = 512                                                  |
+|llama_print_timings:        load time = 21283.78 ms                                          |
+|llama_print_timings:      sample time =     3.08 ms /    13 runs   (    0.24 ms per token)   |
+|llama_print_timings: prompt eval time = 21283.70 ms /   177 tokens (  120.25 ms per token)   |
+|llama_print_timings:        eval time =  2047.03 ms /    12 runs   (  170.59 ms per token)   |
+|llama_print_timings:       total time = 24057.21 ms                                          |
+
+
 ## History
 
 
