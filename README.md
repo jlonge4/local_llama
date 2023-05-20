@@ -17,6 +17,8 @@ Use the command python -m streamlit run "path/to/project/local_llama.py". This w
 
 CLI output as an example for inference time running on my alienware x14 with 3060:
 
+|                                     TIMES                                                   |
+| :-----------------------------------------------------------------------------------------: |
 |/GPT4All-13B-snoozy.ggml.q4_0.bin                                                            |
 |llama_model_load_internal: format     = ggjt v2 (latest)                                     |
 |llama_model_load_internal: n_vocab    = 32000                                                |
