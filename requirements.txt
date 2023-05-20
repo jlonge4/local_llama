@@ -1,3 +1,4 @@
+llama-cpp-python
 llama_index
 langchain
 streamlit
