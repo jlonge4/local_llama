@@ -1,5 +1,5 @@
 llama-cpp-python
-llama_index
+llama-index
 langchain
 streamlit
 streamlit_chat
