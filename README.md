@@ -2,6 +2,8 @@
 
 Interested in chatting with your PDFs entirely offline and free from OpenAI dependencies? Then you're in the right place. I made my other project, gpt_chatwithPDF with the ultimate goal of local_llama in mind. This repo assumes the same functionality as that project but is local and can be run in airplane mode.. Drop a star if you like it!
 
+Video demo here: https://www.reddit.com/user/Jl_btdipsbro/comments/13n6hbz/local_llama/?utm_source=share&utm_medium=ios_app&utm_name=ioscss&utm_content=2&utm_term=1
+
 DISCLAIMER: This is an experimental repo, not an end all be all for your solution. It is meant as a way forward towards many use cases for local offline use of LLMs.
 
 ## Installation
