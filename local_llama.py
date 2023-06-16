@@ -27,8 +27,12 @@ max_input_size = 2048
 num_output = 256
 # set maximum chunk overlap
 max_chunk_overlap = 20
-prompt_helper = PromptHelper(max_input_size, num_output, max_chunk_overlap)
 
+try:
+	prompt_helper = PromptHelper(max_input_size, num_output, max_chunk_overlap)
+except Exception as e:
+	max_chunk_overlap = 0.2  # Set a different max_chunk_overlap value for the next attempt
+	prompt_helper = PromptHelper(max_input_size, num_output, max_chunk_overlap)
 
 class CustomLLM(LLM):
     model_name = MODEL_NAME
