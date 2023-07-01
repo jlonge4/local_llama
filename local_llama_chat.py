@@ -23,8 +23,18 @@ max_input_size = 2048
 # set number of output tokens
 num_output = 256
 # set maximum chunk overlap
-max_chunk_overlap = 20
-prompt_helper = PromptHelper(max_input_size, num_output, max_chunk_overlap)
+chunk_overlap_ratio = 0.8
+
+"""The prompt helper is needed to keep query and context inside of the models context window by reducing original text
+to a ratio of its original size. (chunk_overlap_ratio). The model may process each of these chunks, and then reprocess
+the final answer by combining each chunks response together. A larger chunk size is chosen initially to save 
+compute power, however if this exceeds the context window, the prompt will be retried with a smaller chunk ratio."""
+try:
+	prompt_helper = PromptHelper(max_input_size, num_output, chunk_overlap_ratio)
+except Exception as e:
+	chunk_overlap_ratio = 0.2  # Set a different max_chunk_overlap value for the next attempt
+	prompt_helper = PromptHelper(max_input_size, num_output, chunk_overlap_ratio)
+
 embed_model = LangchainEmbedding(HuggingFaceEmbeddings())
 
 class CustomLLM(LLM):
