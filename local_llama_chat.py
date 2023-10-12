@@ -1,21 +1,13 @@
 from llama_cpp import Llama
-from llama_index import download_loader, SimpleDirectoryReader, ServiceContext, LLMPredictor, GPTVectorStoreIndex, \
-    PromptHelper, StorageContext, load_index_from_storage
-from pathlib import Path
-import os
 import streamlit as st
-from streamlit_chat import message
 from langchain.llms.base import LLM
-from llama_index import SimpleDirectoryReader, LangchainEmbedding, GPTListIndex, PromptHelper
-from llama_index import LLMPredictor, ServiceContext
+from llama_index import LLMPredictor, LangchainEmbedding, ServiceContext, PromptHelper
 from typing import Optional, List, Mapping, Any
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
-from llama_index import LangchainEmbedding, ServiceContext
 
-
-MODEL_NAME = 'GPT4All-13B-snoozy.ggml.q4_0.bin'
-MODEL_PATH = 'path_to_model'
-#Number of threads to use 
+MODEL_NAME = 'llama-2-7b-chat.Q4_K_M.gguf'
+MODEL_PATH = "PATH_TO_MODEL"
+# Number of threads to use
 NUM_THREADS = 8
 # define prompt helper
 # set maximum input size
@@ -25,30 +17,32 @@ num_output = 256
 # set maximum chunk overlap
 chunk_overlap_ratio = 0.8
 
-"""The prompt helper is needed to keep query and context inside of the models context window by reducing original text
-to a ratio of its original size. (chunk_overlap_ratio). The model may process each of these chunks, and then reprocess
-the final answer by combining each chunks response together. A larger chunk size is chosen initially to save 
-compute power, however if this exceeds the context window, the prompt will be retried with a smaller chunk ratio."""
-try:
-	prompt_helper = PromptHelper(max_input_size, num_output, chunk_overlap_ratio)
-except Exception as e:
-	chunk_overlap_ratio = 0.2  # Set a different max_chunk_overlap value for the next attempt
-	prompt_helper = PromptHelper(max_input_size, num_output, chunk_overlap_ratio)
+# The prompt helper is needed to keep query and context inside of the models context window by reducing original text
+# to a ratio of its original size. (chunk_overlap_ratio). The model may process each of these chunks, and then reprocess
+# the final answer by combining each chunks response together. A larger chunk size is chosen initially to save
+# compute power, however if this exceeds the context window, the prompt will be retried with a smaller chunk ratio.
 
+try:
+    prompt_helper = PromptHelper(max_input_size, num_output, chunk_overlap_ratio)
+except Exception as e:
+    chunk_overlap_ratio = 0.2  # Set a different max_chunk_overlap value for the next attempt
+    prompt_helper = PromptHelper(max_input_size, num_output, chunk_overlap_ratio)
+    
 embed_model = LangchainEmbedding(HuggingFaceEmbeddings())
+
 
 class CustomLLM(LLM):
     model_name = MODEL_NAME
-    def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
-        prompt_length = len(prompt) + 5
-        llm = Llama(model_path=MODEL_PATH, n_threads=NUM_THREADS)
 
-        output = llm(f"Q: {prompt} A: ", max_tokens=256,
-                     stop=['Q: '], echo=True)['choices'][0]['text'].replace('A: ', '').strip()
-        # only return newly generated tokens
-        st.session_state.past.append(prompt)
-        st.session_state['generated'].append(output)
-        return output[prompt_length:]
+    def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
+        p = f"Human: {prompt} Assistant: "
+        prompt_length = len(p)
+        llm = Llama(model_path=MODEL_PATH, n_threads=NUM_THREADS)
+        output = llm(p, max_tokens=512, stop=["Human:"], echo=True)['choices'][0]['text']
+        # only return newly generated tokens by slicing list to include words after the original prompt
+        response = output[prompt_length:]
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"role": "assistant", "content": response})
 
     @property
     def _identifying_params(self) -> Mapping[str, Any]:
@@ -61,41 +55,39 @@ class CustomLLM(LLM):
 
 # define our LLM
 llm_predictor = LLMPredictor(llm=CustomLLM())
-service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, prompt_helper=prompt_helper,
-                                               embed_model=embed_model)\
+service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, prompt_helper=prompt_helper, embed_model=embed_model)
+
 
 def clear_convo():
-    st.session_state['past'] = []
-    st.session_state['generated'] = []
+    st.session_state['messages'] = []
 
 
 def init():
-    st.set_page_config(page_title='Local ChatBot', page_icon=':robot_face: ')
-    st.sidebar.title('Local ChatBot')
+    st.set_page_config(page_title='Local LLama', page_icon=':robot_face: ')
+    st.sidebar.title('Local LLama')
+    if 'messages' not in st.session_state:
+        st.session_state['messages'] = []
 
 
 if __name__ == '__main__':
     init()
 
+
+    @st.cache_resource
+    def get_llm():
+        llm = CustomLLM()
+        return llm
+
     clear_button = st.sidebar.button("Clear Conversation", key="clear")
     if clear_button:
         clear_convo()
 
-    if 'generated' not in st.session_state:
-        st.session_state['generated'] = []
+    user_input = st.chat_input("Say something")
 
-    if 'past' not in st.session_state:
-        st.session_state['past'] = []
-
-    with st.form(key='my_form', clear_on_submit=True):
-        user_input = st.text_area("You:", key="input", height=75)
-        submit_button = st.form_submit_button(label="Submit")
-
-    if user_input and submit_button:
-        llm = CustomLLM()
+    if user_input:
+        llm = get_llm()
         llm._call(prompt=user_input)
 
-    if st.session_state['generated']:
-        for i in range(len(st.session_state['generated']) - 1, -1, -1):
-            message(st.session_state['generated'][i], key=str(i))
-            message(st.session_state['past'][i], is_user=True, key=str(i) + "user")
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
