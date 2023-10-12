@@ -4,4 +4,4 @@ langchain
 streamlit
 streamlit_chat
 pathlib
-sentence_transformers
+sentence-transformers
