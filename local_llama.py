@@ -40,14 +40,16 @@ except Exception as e:
 
 class CustomLLM(LLM):
     model_name = MODEL_NAME
-    def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
-        prompt_length = len(prompt) + 5
-        llm = Llama(model_path=MODEL_PATH, n_threads=NUM_THREADS)
 
-        output = llm(f"Q: {prompt} A: ", max_tokens=256,
-                     stop=['A: '], echo=True)['choices'][0]['text'].replace('A: ', '').strip()
-        # only return newly generated tokens
-        return output[prompt_length:]
+    def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
+        p = f"Human: {prompt} Assistant: "
+        prompt_length = len(p)
+        llm = Llama(model_path=MODEL_PATH, n_threads=NUM_THREADS)
+        output = llm(p, max_tokens=512, stop=["Human:"], echo=True)['choices'][0]['text']
+        # only return newly generated tokens by slicing list to include words after the original prompt
+        response = output[prompt_length:]
+        # st.session_state.messages.append({"role": "user", "content": prompt})
+        # st.session_state.messages.append({"role": "assistant", "content": response})
 
     @property
     def _identifying_params(self) -> Mapping[str, Any]:
@@ -56,6 +58,7 @@ class CustomLLM(LLM):
     @property
     def _llm_type(self) -> str:
         return "custom"
+
 
 
 # load in HF embedding model from langchain
