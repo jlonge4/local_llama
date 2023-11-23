@@ -18,7 +18,7 @@ Run pip install -r requirements.txt
 
 ## Usage
 
-Use the command python -m streamlit run "path/to/project/local_llama.py". This will start the app in your browser. Once you have uploaded your PDFs, refresh the browser, select a manual, and ask away!
+Use the command python -m streamlit run "path/to/project/local_llama.py". This will start the app in your browser. Once you have uploaded your files, just ask away!
 
 CLI output as an example for inference time running on my alienware x14 with 3060:
 
@@ -37,10 +37,12 @@ CLI output as an example for inference time running on my alienware x14 with 306
 
 ## History
 
+Updated version to support streamlit native chat elements to abandon streamlit_chat.
+Updated to use gguf in compliance with llama_cpp no longer supporting ggml.
 
 ## Credits
 
-The-Bloke and his model GPT4All-13B-snoozy.ggml.q4_0.bin that I used for this project.
+The-Bloke and his model llama-2-7b-chat.Q4_K_M.gguf that I used for this project.
 
 ## License
 
