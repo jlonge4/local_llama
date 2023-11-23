@@ -4,22 +4,22 @@ from llama_index import download_loader, SimpleDirectoryReader, ServiceContext, 
 from pathlib import Path
 import os
 import streamlit as st
-from streamlit_chat import message
 from langchain.llms.base import LLM
-from llama_index import SimpleDirectoryReader, LangchainEmbedding, GPTListIndex, PromptHelper
+from llama_index import SimpleDirectoryReader, GPTListIndex, PromptHelper
 from llama_index import LLMPredictor, ServiceContext
 from typing import Optional, List, Mapping, Any
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
-from llama_index import LangchainEmbedding, ServiceContext
+from llama_index import LLMPredictor, ServiceContext
+from llama_index.embeddings import LangchainEmbedding
 
-MODEL_NAME = 'GPT4All-13B-snoozy.ggml.q4_0.bin'
-MODEL_PATH = 'path_to_model'
+MODEL_NAME = 'llama-2-7b-chat.Q4_K_M.gguf'
+MODEL_PATH = "C:/Users/joshl/Downloads/llama-2-7b-chat.Q4_K_M.gguf"
 
 #Number of threads to use 
 NUM_THREADS = 8
 
-PATH_TO_PDFS = 'WHERE YOUR PDFS ARE (SINGLE DIRECTORY)'
-PATH_TO_INDEXES = 'GPT_INDEXES'
+PATH_TO_PDFS = "C:/Users/joshl/Desktop/JLDEVTECH/JL REPO/Scripts/gpt_chatwithPDF/PDFs"
+PATH_TO_INDEXES = "C:/Users/joshl/Desktop/JLDEVTECH/JL REPO/Scripts/gpt_chatwithPDF/GPT_INDEXES"
 # define prompt helper
 # set maximum input size
 max_input_size = 2048
@@ -28,10 +28,11 @@ num_output = 256
 # set maximum chunk overlap
 chunk_overlap_ratio = 0.8
 
-"""The prompt helper is needed to keep query and context inside of the models context window by reducing original text
-to a ratio of its original size. (chunk_overlap_ratio). The model may process each of these chunks, and then reprocess
-the final answer by combining each chunks response together. A larger chunk size is chosen initially to save 
-compute power, however if this exceeds the context window, the prompt will be retried with a smaller chunk ratio."""
+#"""The prompt helper is needed to keep query and context inside of the models context window by reducing original text
+#to a ratio of its original size. (chunk_overlap_ratio). The model may process each of these chunks, and then reprocess
+#the final answer by combining each chunks response together. A larger chunk size is chosen initially to save 
+#compute power, however if this exceeds the context window, the prompt will be retried with a smaller chunk ratio."""
+
 try:
 	prompt_helper = PromptHelper(max_input_size, num_output, chunk_overlap_ratio)
 except Exception as e:
@@ -48,8 +49,8 @@ class CustomLLM(LLM):
         output = llm(p, max_tokens=512, stop=["Human:"], echo=True)['choices'][0]['text']
         # only return newly generated tokens by slicing list to include words after the original prompt
         response = output[prompt_length:]
-        # st.session_state.messages.append({"role": "user", "content": prompt})
-        # st.session_state.messages.append({"role": "assistant", "content": response})
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"role": "assistant", "content": response})
 
     @property
     def _identifying_params(self) -> Mapping[str, Any]:
@@ -79,30 +80,21 @@ def pdf_to_index(pdf_path, save_path):
     loader = PDFReader()
     documents = loader.load_data(file=Path(pdf_path))
     index = GPTVectorStoreIndex.from_documents(documents, service_context=service_context)
-    # deprecated
-    # index.save_to_disk(save_path)
     index.storage_context.persist(persist_dir=save_path)
     print('saved to disk')
 
 
 # query index using GPT
 def query_index(query_u):
-    # deprecated
-    # index = GPTVectorStoreIndex.load_from_disk(index_path, service_context=service_context)
     pdf_to_use = get_manual()
     storage_context = StorageContext.from_defaults(persist_dir=f"{PATH_TO_INDEXES}/{pdf_to_use}")
     index = load_index_from_storage(storage_context, service_context=service_context)
     query_engine = index.as_query_engine()
-    response = query_engine.query(query_u)
-    # deprecated
-    # response=index.query(query_u)
-    st.session_state.past.append(query_u)
-    st.session_state.generated.append(response.response)
+    query_engine.query(query_u)
 
 
 def clear_convo():
-    st.session_state['past'] = []
-    st.session_state['generated'] = []
+    st.session_state['messages'] = []
 
 
 def save_pdf(file):
@@ -124,20 +116,19 @@ def get_manual():
 def init():
     st.set_page_config(page_title='PDF ChatBot', page_icon=':robot_face: ')
     st.sidebar.title('Available PDF')
+    if 'messages' not in st.session_state:
+        st.session_state['messages'] = []
 
 
 if __name__ == '__main__':
     init()
 
-    clear_button = st.sidebar.button("Clear Conversation", key="clear")
-    if clear_button:
-        clear_convo()
+    @st.cache_resource
+    def get_llm():
+        llm = CustomLLM()
+        return llm
 
-    if 'generated' not in st.session_state:
-        st.session_state['generated'] = []
-
-    if 'past' not in st.session_state:
-        st.session_state['past'] = []
+    clear_button = st.sidebar.button("Clear Conversation", key="clear", on_click=clear_convo)
 
     if 'manual' not in st.session_state:
         st.session_state['manual'] = []
@@ -149,10 +140,9 @@ if __name__ == '__main__':
     if user_input and submit_button:
         query_index(query_u=user_input)
 
-    if st.session_state['generated']:
-        for i in range(len(st.session_state['generated']) - 1, -1, -1):
-            message(st.session_state['generated'][i], key=str(i))
-            message(st.session_state['past'][i], is_user=True, key=str(i) + "user")
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
     manual_names = os.listdir(PATH_TO_INDEXES)
     manual = st.sidebar.radio("Choose a manual:", manual_names, key='init')

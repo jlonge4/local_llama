@@ -1,12 +1,13 @@
 from llama_cpp import Llama
 import streamlit as st
 from langchain.llms.base import LLM
-from llama_index import LLMPredictor, LangchainEmbedding, ServiceContext, PromptHelper
+from llama_index import LLMPredictor, ServiceContext, PromptHelper
+from llama_index.embeddings import LangchainEmbedding
 from typing import Optional, List, Mapping, Any
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 
 MODEL_NAME = 'llama-2-7b-chat.Q4_K_M.gguf'
-MODEL_PATH = "PATH_TO_MODEL"
+MODEL_PATH = "C:/Users/joshl/Downloads/llama-2-7b-chat.Q4_K_M.gguf"
 # Number of threads to use
 NUM_THREADS = 8
 # define prompt helper
@@ -53,17 +54,12 @@ class CustomLLM(LLM):
         return "custom"
 
 
-# define our LLM
-llm_predictor = LLMPredictor(llm=CustomLLM())
-service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, prompt_helper=prompt_helper, embed_model=embed_model)
-
-
 def clear_convo():
     st.session_state['messages'] = []
 
 
 def init():
-    st.set_page_config(page_title='Local LLama', page_icon=':robot_face: ')
+    st.set_page_config(page_title='Local Llama', page_icon=':robot_face: ')
     st.sidebar.title('Local LLama')
     if 'messages' not in st.session_state:
         st.session_state['messages'] = []
@@ -78,9 +74,7 @@ if __name__ == '__main__':
         llm = CustomLLM()
         return llm
 
-    clear_button = st.sidebar.button("Clear Conversation", key="clear")
-    if clear_button:
-        clear_convo()
+    clear_button = st.sidebar.button("Clear Conversation", key="clear", on_click=clear_convo)
 
     user_input = st.chat_input("Say something")
 
