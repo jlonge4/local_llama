@@ -1,17 +1,12 @@
 from llama_cpp import Llama
 import streamlit as st
 from langchain.llms.base import LLM
-from llama_index import LLMPredictor, ServiceContext, PromptHelper
-from llama_index.embeddings import LangchainEmbedding
 from typing import Optional, List, Mapping, Any
-from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 
 MODEL_NAME = 'llama-2-7b-chat.Q4_K_M.gguf'
 MODEL_PATH = "model path"
 # Number of threads to use
 NUM_THREADS = 8
-    
-embed_model = LangchainEmbedding(HuggingFaceEmbeddings())
 
 class CustomLLM(LLM):
     model_name = MODEL_NAME

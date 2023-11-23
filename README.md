@@ -1,6 +1,6 @@
 # local_llama
 
-Interested in chatting with your PDFs entirely offline and free from OpenAI dependencies? Then you're in the right place. I made my other project, gpt_chatwithPDF with the ultimate goal of local_llama in mind. This repo assumes the same functionality as that project but is local and can be run in airplane mode.. Drop a star if you like it!
+Interested in chatting with your PDFs, TXT files, or Docx files entirely offline and free from OpenAI dependencies? Then you're in the right place. I made my other project, gpt_chatwithPDF with the ultimate goal of local_llama in mind. This repo assumes the same functionality as that project but is local and can be run in airplane mode.. Drop a star if you like it!
 
 Video demo here: https://www.reddit.com/user/Jl_btdipsbro/comments/13n6hbz/local_llama/?utm_source=share&utm_medium=ios_app&utm_name=ioscss&utm_content=2&utm_term=1
 
@@ -9,8 +9,11 @@ DISCLAIMER: This is an experimental repo, not an end all be all for your solutio
 ## Installation
 
 On windows you have to have Visual Studio with a C compiler installed. 
-Secondly you need a model, I used GPT4All-13B-snoozy.ggml.q4_0.bin, however any ggml should work. 
-I downloaded the model here https://huggingface.co/TheBloke/GPT4All-13B-snoozy-GGML/tree/main
+Secondly you need a model, I used llama-2-7b-chat.Q4_K_M.gguf, however any gguf should work. 
+
+* Note GGUF is a new format introduced by the llama.cpp team on August 21st 2023. It is a replacement for GGML, which is no longer supported by llama.cpp.
+
+I downloaded the model here https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF
 Run pip install -r requirements.txt
 
 ## Usage
