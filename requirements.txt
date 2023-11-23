@@ -2,6 +2,7 @@ llama-cpp-python
 llama-index
 langchain
 streamlit
-streamlit_chat
 pathlib
 sentence-transformers
+farm-haystack
+farm-haystack[all]
