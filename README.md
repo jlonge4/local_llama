@@ -10,6 +10,8 @@ DISCLAIMER: This is an experimental repo, not an end all be all for your solutio
 
 If you wish to use the latest update of this repo, I have now added support for ollama if you wish to run that and not install a gguf model via download. The performance gain by using ollama is astronomical, kudos to those folks!
 
+Just ensure ollama is installed from https://ollama.ai/download. Once you have done that ensure you have run the server using ollama serve. Lastly, run local_llama_v3.py and enjoy chatting with llama2 or with your docs. A lot more work to come here so bear with me!
+
 ## Installation
 
 On windows you have to have Visual Studio with a C compiler installed. 
