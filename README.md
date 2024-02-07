@@ -6,6 +6,10 @@ Video demo here: https://www.reddit.com/user/Jl_btdipsbro/comments/13n6hbz/local
 
 DISCLAIMER: This is an experimental repo, not an end all be all for your solution. It is meant as a way forward towards many use cases for local offline use of LLMs.
 
+## New Update!
+
+If you wish to use the latest update of this repo, I have now added support for ollama if you wish to run that and not install a gguf model via download. The performance gain by using ollama is astronomical, kudos to those folks!
+
 ## Installation
 
 On windows you have to have Visual Studio with a C compiler installed. 
