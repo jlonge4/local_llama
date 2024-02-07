@@ -1,8 +1,8 @@
 llama-cpp-python
-llama-index
 langchain
-streamlit
+streamlit==1.31.0
 pathlib
 sentence-transformers
 farm-haystack
 farm-haystack[all]
+ollama
