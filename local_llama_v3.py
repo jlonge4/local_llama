@@ -1,7 +1,6 @@
 import streamlit as st
 from haystack.pipelines import Pipeline
-from haystack.pipelines.standard_pipelines import DocumentSearchPipeline
-from haystack.document_stores import FAISSDocumentStore
+from haystack.document_stores import FAISSDocumentStore, SQLDocumentStore
 from haystack.nodes import (
     EmbeddingRetriever,
     TextConverter,
@@ -10,8 +9,13 @@ from haystack.nodes import (
     MarkdownConverter,
     DocxToTextConverter,
     PreProcessor,
+    TfidfRetriever,
+    JoinDocuments,
+    SentenceTransformersRanker,
 )
 import os
+
+os.environ["HAYSTACK_TELEMETRY_ENABLED"] = "False"
 
 
 def get_doc_store():
@@ -19,35 +23,57 @@ def get_doc_store():
         document_store = FAISSDocumentStore.load(
             index_path="my_index.faiss", config_path="my_config.json"
         )
-    except Exception as e:
+        document_store_tfidf = SQLDocumentStore("sqlite:///test.db")
+    except Exception:
         print("No doc store found, creating new one")
         document_store = FAISSDocumentStore(embedding_dim=768)
         document_store.save(index_path="my_index.faiss", config_path="my_config.json")
-    return document_store
+        document_store_tfidf = SQLDocumentStore("sqlite:///test.db")
+    return document_store, document_store_tfidf
 
 
 def get_context(query):
-    document_store = get_doc_store()
+    document_store, document_store_tfidf = get_doc_store()
+    sparse_retriever = TfidfRetriever(document_store=document_store_tfidf)
     retriever = EmbeddingRetriever(
         document_store=document_store,
         embedding_model="sentence-transformers/msmarco-bert-base-dot-v5",
         model_format="sentence_transformers",
     )
-    pipe = DocumentSearchPipeline(retriever)
-    top_k = 3
-    answer = pipe.run(
+
+    join_documents = JoinDocuments(join_mode="concatenate")
+    rerank = SentenceTransformersRanker(
+        model_name_or_path="cross-encoder/ms-marco-MiniLM-L-6-v2"
+    )
+
+    pipeline = Pipeline()
+    pipeline.add_node(
+        component=sparse_retriever, name="SparseRetriever", inputs=["Query"]
+    )
+    pipeline.add_node(component=retriever, name="DenseRetriever", inputs=["Query"])
+    pipeline.add_node(
+        component=join_documents,
+        name="JoinDocuments",
+        inputs=["SparseRetriever", "DenseRetriever"],
+    )
+    pipeline.add_node(component=rerank, name="ReRanker", inputs=["JoinDocuments"])
+
+    prediction = pipeline.run(
         query=query,
         params={
-            "Retriever": {
-                "top_k": top_k,
-            },
+            "SparseRetriever": {"top_k": 10},
+            "DenseRetriever": {"top_k": 10},
+            "JoinDocuments": {"top_k_join": 15},
+            "ReRanker": {"top_k": 3},
         },
     )
-    return answer["documents"]
+    # Uncomment to see context: st.write(prediction)
+    return prediction
 
 
 def indexing_pipe(filename):
-    document_store = get_doc_store()
+    document_store, document_store_tfidf = get_doc_store()
+
     file_type_classifier = FileTypeClassifier()
 
     text_converter = TextConverter()
@@ -102,6 +128,11 @@ def indexing_pipe(filename):
     )
     p.add_node(component=retriever, name="Retriever", inputs=["Preprocessor"])
     p.add_node(component=document_store, name="DocumentStore", inputs=["Retriever"])
+    p.add_node(
+        component=document_store_tfidf,
+        name="DocumentStoreTFIDF",
+        inputs=["Preprocessor"],
+    )
 
     os.makedirs("uploads", exist_ok=True)
     # Save the file to disk
@@ -115,7 +146,6 @@ def indexing_pipe(filename):
         meta={"document_name": filename.name},
     )
 
-    # Once documents are ran through the pipeline, use this to add embeddings to the datastore
     document_store.save(index_path="my_index.faiss", config_path="my_config.json")
     print(
         f"Docs match embedding count: {document_store.get_document_count() == document_store.get_embedding_count()}"
@@ -141,8 +171,8 @@ def invoke_ollama(user_input):
         {{context}}
         Use ONLY the history and or context provided to answer the question.
         Use as few words as possible to accurately answer. \n"""
-        #Uncomment to make llama use a template {"answer": "the answer"}
-        # Use the following template: {json.dumps(template)}."""
+    # Uncomment to make llama use a template {"answer": "the answer"}
+    # Use the following template: {json.dumps(template)}."""
 
     data = {
         "prompt": user_input,
@@ -191,7 +221,7 @@ if __name__ == "__main__":
     clicked = st.button("Upload File", key="Upload")
     if file and clicked:
         with st.spinner("Wait for it..."):
-            document_store = indexing_pipe(file)
+            indexing_pipe(file)
         st.success("Indexed {0}! Refresh to update indexes.".format(file.name))
     user_input = st.chat_input("Say something")
 
