@@ -1,8 +1,6 @@
-llama-cpp-python
-langchain
 streamlit==1.31.0
 pathlib
 sentence-transformers
-farm-haystack
-farm-haystack[all]
+haystack-ai==2.2.4
+pypdf2
 ollama

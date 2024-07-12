@@ -1,138 +1,62 @@
 import streamlit as st
-from haystack.pipelines import Pipeline
-from haystack.document_stores import FAISSDocumentStore, SQLDocumentStore
-from haystack.nodes import (
-    EmbeddingRetriever,
-    TextConverter,
-    FileTypeClassifier,
-    PDFToTextConverter,
-    MarkdownConverter,
-    DocxToTextConverter,
-    PreProcessor,
-    TfidfRetriever,
-    JoinDocuments,
-    SentenceTransformersRanker,
-)
+from haystack import Pipeline
+from haystack.document_stores.in_memory import InMemoryDocumentStore
+from haystack.components.converters import PyPDFToDocument
+from haystack.components.converters.txt import TextFileToDocument
+from haystack.components.preprocessors import DocumentCleaner, DocumentSplitter
+from haystack.components.writers import DocumentWriter
+from haystack.components.embedders import SentenceTransformersTextEmbedder, SentenceTransformersDocumentEmbedder
+from haystack.components.joiners import DocumentJoiner
+from haystack.utils import Secret
+from pathlib import Path
+
+from haystack.dataclasses import ChatMessage
+from haystack.components.generators.chat import OpenAIChatGenerator
+import concurrent.futures
+import os
+from haystack_integrations.document_stores.chroma import ChromaDocumentStore
+from haystack_integrations.components.retrievers.chroma import ChromaQueryTextRetriever, ChromaEmbeddingRetriever
 import os
 
 os.environ["HAYSTACK_TELEMETRY_ENABLED"] = "False"
 
 
 def get_doc_store():
-    try:
-        document_store = FAISSDocumentStore.load(
-            index_path="my_index.faiss", config_path="my_config.json"
-        )
-        document_store_tfidf = SQLDocumentStore("sqlite:///test.db")
-    except Exception:
-        print("No doc store found, creating new one")
-        document_store = FAISSDocumentStore(embedding_dim=768)
-        document_store.save(index_path="my_index.faiss", config_path="my_config.json")
-        document_store_tfidf = SQLDocumentStore("sqlite:///test.db")
-    return document_store, document_store_tfidf
+    return ChromaDocumentStore(collection_name='mydocs', persist_path='./vec-index', distance_function='cosine')
 
 
 def get_context(query):
-    document_store, document_store_tfidf = get_doc_store()
-    sparse_retriever = TfidfRetriever(document_store=document_store_tfidf)
-    retriever = EmbeddingRetriever(
-        document_store=document_store,
-        embedding_model="sentence-transformers/msmarco-bert-base-dot-v5",
-        model_format="sentence_transformers",
+    document_store = get_doc_store()
+
+    query_pipeline = Pipeline()
+    query_pipeline.add_component(
+        "text_embedder", SentenceTransformersTextEmbedder()
+    )
+    query_pipeline.add_component(
+        "retriever", ChromaEmbeddingRetriever(document_store=document_store, top_k=4)
     )
 
-    join_documents = JoinDocuments(join_mode="concatenate")
-    rerank = SentenceTransformersRanker(
-        model_name_or_path="cross-encoder/ms-marco-MiniLM-L-6-v2"
+    query_pipeline.connect("text_embedder", "retriever")
+    result = query_pipeline.run(
+        {"text_embedder": {"text": query}}
     )
-
-    pipeline = Pipeline()
-    pipeline.add_node(
-        component=sparse_retriever, name="SparseRetriever", inputs=["Query"]
-    )
-    pipeline.add_node(component=retriever, name="DenseRetriever", inputs=["Query"])
-    pipeline.add_node(
-        component=join_documents,
-        name="JoinDocuments",
-        inputs=["SparseRetriever", "DenseRetriever"],
-    )
-    pipeline.add_node(component=rerank, name="ReRanker", inputs=["JoinDocuments"])
-
-    prediction = pipeline.run(
-        query=query,
-        params={
-            "SparseRetriever": {"top_k": 10},
-            "DenseRetriever": {"top_k": 10},
-            "JoinDocuments": {"top_k_join": 15},
-            "ReRanker": {"top_k": 3},
-        },
-    )
-    # Uncomment to see context: st.write(prediction)
-    return prediction
+    return result["retriever"]["documents"]
 
 
 def indexing_pipe(filename):
-    document_store, document_store_tfidf = get_doc_store()
+    document_store = get_doc_store()
 
-    file_type_classifier = FileTypeClassifier()
+    pipeline = Pipeline()
+    pipeline.add_node('converter', component=PyPDFToDocument())
+    pipeline.add_node('cleaner', component=DocumentCleaner())
+    pipeline.add_node('splitter', component=DocumentSplitter(split_by='word', split_length=50))
+    pipeline.add_node('embedder', component=SentenceTransformersDocumentEmbedder())
+    pipeline.add_node('writer', component=DocumentWriter(document_store=document_store))
 
-    text_converter = TextConverter()
-    pdf_converter = PDFToTextConverter()
-    md_converter = MarkdownConverter()
-    docx_converter = DocxToTextConverter()
-    preprocessor = PreProcessor(
-        clean_empty_lines=True,
-        clean_whitespace=True,
-        clean_header_footer=True,
-        split_by="word",
-        split_length=350,
-        split_overlap=20,
-        split_respect_sentence_boundary=True,
-    )
-
-    retriever = EmbeddingRetriever(
-        document_store=document_store,
-        embedding_model="sentence-transformers/msmarco-bert-base-dot-v5",
-        model_format="sentence_transformers",
-    )
-
-    # indexing pipeline
-    p = Pipeline()
-    p.add_node(
-        component=file_type_classifier, name="FileTypeClassifier", inputs=["File"]
-    )
-    p.add_node(
-        component=text_converter,
-        name="TextConverter",
-        inputs=["FileTypeClassifier.output_1"],
-    )
-    p.add_node(
-        component=pdf_converter,
-        name="PdfConverter",
-        inputs=["FileTypeClassifier.output_2"],
-    )
-    p.add_node(
-        component=md_converter,
-        name="MarkdownConverter",
-        inputs=["FileTypeClassifier.output_3"],
-    )
-    p.add_node(
-        component=docx_converter,
-        name="DocxConverter",
-        inputs=["FileTypeClassifier.output_4"],
-    )
-    p.add_node(
-        component=preprocessor,
-        name="Preprocessor",
-        inputs=["TextConverter", "PdfConverter", "MarkdownConverter", "DocxConverter"],
-    )
-    p.add_node(component=retriever, name="Retriever", inputs=["Preprocessor"])
-    p.add_node(component=document_store, name="DocumentStore", inputs=["Retriever"])
-    p.add_node(
-        component=document_store_tfidf,
-        name="DocumentStoreTFIDF",
-        inputs=["Preprocessor"],
-    )
+    pipeline.connect("converter", "cleaner")
+    pipeline.connect("cleaner", "splitter")
+    pipeline.connect("splitter", "embedder")
+    pipeline.connect("embedder.documents", "writer")
 
     os.makedirs("uploads", exist_ok=True)
     # Save the file to disk
@@ -140,17 +64,7 @@ def indexing_pipe(filename):
     with open(file_path, "wb") as f:
         f.write(file.getbuffer())
 
-    # Run pipeline on document and add metadata to include doc name
-    p.run(
-        file_paths=["uploads/{0}".format(filename.name)],
-        meta={"document_name": filename.name},
-    )
-
-    document_store.save(index_path="my_index.faiss", config_path="my_config.json")
-    print(
-        f"Docs match embedding count: {document_store.get_document_count() == document_store.get_embedding_count()}"
-    )
-
+    pipeline.run({"converter": {"sources": [Path(file_path)]}})
 
 def invoke_ollama(user_input):
     st.session_state.messages.append({"role": "user", "content": user_input})
