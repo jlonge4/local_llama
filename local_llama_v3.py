@@ -90,14 +90,13 @@ def invoke_ollama(user_input):
 
     data = {
         "prompt": user_input,
-        "model": "llama2",
+        "model": "llama3:8b",
         "format": "json",
         "stream": True,
-        "options": {"temperature": 0.9, "top_p": 0.99, "top_k": 250},
+        "options": {"temperature": 0.2, "top_p": 0.2, "top_k": 50},
     }
     s = ""
     box = st.chat_message("assistant").empty()
-    from ollama import generate
 
     for part in generate(
         model=data["model"],
@@ -131,7 +130,7 @@ if __name__ == "__main__":
     clear_button = st.sidebar.button(
         "Clear Conversation", key="clear", on_click=clear_convo
     )
-    file = st.file_uploader("Choose a file to index...", type=["docx", "pdf", "txt"])
+    file = st.file_uploader("Choose a file to index...", type=["docx", "pdf", "txt", "md"])
     clicked = st.button("Upload File", key="Upload")
     if file and clicked:
         with st.spinner("Wait for it..."):
