@@ -1,58 +1,69 @@
-import streamlit as st
-from ollama import generate
-from haystack import Pipeline
-from haystack.document_stores.in_memory import InMemoryDocumentStore
-from haystack.components.converters import PyPDFToDocument
-from haystack.components.converters.txt import TextFileToDocument
-from haystack.components.preprocessors import DocumentCleaner, DocumentSplitter
-from haystack.components.writers import DocumentWriter
-from haystack.components.embedders import SentenceTransformersTextEmbedder, SentenceTransformersDocumentEmbedder
-from haystack.components.joiners import DocumentJoiner
-from haystack.utils import Secret
+import os
 from pathlib import Path
 
-from haystack.dataclasses import ChatMessage
-from haystack.components.generators.chat import OpenAIChatGenerator
-import concurrent.futures
-import os
+import streamlit as st
+from haystack import Pipeline
+from haystack.components.converters import PyPDFToDocument
+from haystack.components.preprocessors import DocumentCleaner, DocumentSplitter
+from haystack.components.writers import DocumentWriter
+from haystack_integrations.components.embedders.ollama import (
+    OllamaDocumentEmbedder,
+    OllamaTextEmbedder,
+)
+from haystack_integrations.components.retrievers.chroma import ChromaEmbeddingRetriever
 from haystack_integrations.document_stores.chroma import ChromaDocumentStore
-from haystack_integrations.components.retrievers.chroma import ChromaQueryTextRetriever, ChromaEmbeddingRetriever
-import os
+from ollama import generate
 
 os.environ["HAYSTACK_TELEMETRY_ENABLED"] = "False"
 
 
 def get_doc_store():
-    return ChromaDocumentStore(collection_name='mydocs', persist_path='./vec-index', distance_function='cosine')
+    return ChromaDocumentStore(
+        collection_name="mydocs", persist_path="./vec-index", distance_function="cosine"
+    )
 
 
 def get_context(query):
     document_store = get_doc_store()
 
     query_pipeline = Pipeline()
+    query_pipeline.add_component("text_embedder", OllamaTextEmbedder())
     query_pipeline.add_component(
-        "text_embedder", SentenceTransformersTextEmbedder()
-    )
-    query_pipeline.add_component(
-        "retriever", ChromaEmbeddingRetriever(document_store=document_store, top_k=4)
+        "retriever", ChromaEmbeddingRetriever(document_store=document_store, top_k=3)
     )
 
-    query_pipeline.connect("text_embedder", "retriever")
-    result = query_pipeline.run(
-        {"text_embedder": {"text": query}}
-    )
-    return result["retriever"]["documents"]
+    query_pipeline.connect("text_embedder.embedding", "retriever.query_embedding")
+    result = query_pipeline.run({"text_embedder": {"text": query}})
+    context = [doc.content for doc in result["retriever"]["documents"]]
+    sources = [doc.meta["page_number"] for doc in result["retriever"]["documents"]]
+    files = [doc.meta["file_path"] for doc in result["retriever"]["documents"]]
+    final_context = [
+        f"Context: {c} (Page: {s}, File: {f})"
+        for c, s, f in zip(context, sources, files)
+    ]
+    # Uncomment for debug st.write(final_context)
+    return final_context
 
 
 def indexing_pipe(filename):
     document_store = get_doc_store()
 
     pipeline = Pipeline()
-    pipeline.add_node('converter', component=PyPDFToDocument())
-    pipeline.add_node('cleaner', component=DocumentCleaner())
-    pipeline.add_node('splitter', component=DocumentSplitter(split_by='word', split_length=50))
-    pipeline.add_node('embedder', component=SentenceTransformersDocumentEmbedder())
-    pipeline.add_node('writer', component=DocumentWriter(document_store=document_store))
+    pipeline.add_component("converter", PyPDFToDocument())
+    pipeline.add_component(
+        "cleaner",
+        DocumentCleaner(
+            remove_empty_lines=True,
+            remove_extra_whitespaces=True,
+            remove_repeated_substrings=True,
+        ),
+    )
+    pipeline.add_component(
+        "splitter",
+        DocumentSplitter(split_by="word", split_length=300, split_overlap=15),
+    )
+    pipeline.add_component("embedder", OllamaDocumentEmbedder())
+    pipeline.add_component("writer", DocumentWriter(document_store=document_store))
 
     pipeline.connect("converter", "cleaner")
     pipeline.connect("cleaner", "splitter")
@@ -66,6 +77,7 @@ def indexing_pipe(filename):
         f.write(file.getbuffer())
 
     pipeline.run({"converter": {"sources": [Path(file_path)]}})
+
 
 def invoke_ollama(user_input):
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -85,16 +97,22 @@ def invoke_ollama(user_input):
         {get_context(user_input)}
         {{context}}
         Use ONLY the history and or context provided to answer the question.
-        Use as few words as possible to accurately answer. \n"""
+        Use as few words as possible to accurately answer."""
     # Uncomment to make llama use a template {"answer": "the answer"}
     # Use the following template: {json.dumps(template)}."""
+    prompt_wrapper = f"""You are a helpful assistant that answers users questions and chats. 
+    Use the provided history and context to answer the question. 
+    {{user_query}}
+    {user_input}
+    {{user_query}}
+    Use as few words as possible to accurately answer, providing citations to the page number and file path from which your answer was synthesized."""
 
     data = {
-        "prompt": user_input,
+        "prompt": prompt_wrapper,
         "model": "llama3:8b",
         "format": "json",
         "stream": True,
-        "options": {"temperature": 0.2, "top_p": 0.2, "top_k": 50},
+        "options": {"top_p": 0.05, "top_k": 5},
     }
     s = ""
     box = st.chat_message("assistant").empty()
@@ -131,12 +149,24 @@ if __name__ == "__main__":
     clear_button = st.sidebar.button(
         "Clear Conversation", key="clear", on_click=clear_convo
     )
-    file = st.file_uploader("Choose a file to index...", type=["docx", "pdf", "txt", "md"])
+    file = st.file_uploader(
+        "Choose a file to index...", type=["docx", "pdf", "txt", "md"]
+    )
+
+    # display on sidebar all files within uploads dir
+    st.sidebar.markdown("## Uploaded Files")
+    uploaded_files = os.listdir("uploads")
+    for f in uploaded_files:
+        st.sidebar.markdown(f)
+    st.sidebar.info(
+        """This application stores uploaded files in the 'uploads' directory upon upload and then indexes them into a 
+                    locally persisted Chroma Document Store so that you may re-use your documentation as necessary."""
+    )
     clicked = st.button("Upload File", key="Upload")
     if file and clicked:
         with st.spinner("Wait for it..."):
             indexing_pipe(file)
-        st.success("Indexed {0}! Refresh to update indexes.".format(file.name))
+        st.success("Indexed {0}!".format(file.name))
     user_input = st.chat_input("Say something")
 
     if user_input:

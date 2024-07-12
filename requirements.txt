@@ -1,6 +1,8 @@
 streamlit==1.31.0
+chroma-haystack
 pathlib
 sentence-transformers
 haystack-ai==2.2.4
-pypdf2
+ollama-haystack
+pypdf
 ollama

@@ -1,57 +1,62 @@
-# local_llama
+# Local Llama
 
-![Your Repository's Stats](https://github-readme-stats.vercel.app/api?username=jlonge4&show_icons=true)
+This project enables you to chat with your PDFs, TXT files, or Docx files entirely offline, free from OpenAI dependencies. It's an evolution of the gpt_chatwithPDF project, now leveraging local LLMs for enhanced privacy and offline functionality.
 
-Interested in chatting with your PDFs, TXT files, or Docx files entirely offline and free from OpenAI dependencies? Then you're in the right place. I made my other project, gpt_chatwithPDF with the ultimate goal of local_llama in mind. This repo assumes the same functionality as that project but is local and can be run in airplane mode.. Drop a star if you like it!
+## Features
 
-Video demo here: https://www.reddit.com/user/Jl_btdipsbro/comments/13n6hbz/local_llama/?utm_source=share&utm_medium=ios_app&utm_name=ioscss&utm_content=2&utm_term=1
+- Offline operation: Run in airplane mode
+- Local LLM integration: Uses Ollama for improved performance
+- Multiple file format support: PDF, TXT, DOCX, MD
+- Persistent vector database: Reusable indexed documents
+- Streamlit-based user interface
 
-DISCLAIMER: This is an experimental repo, not an end all be all for your solution. It is meant as a way forward towards many use cases for local offline use of LLMs.
+## New Updates
 
-## New Update!
-
-If you wish to use the latest update of this repo, I have now added support for ollama if you wish to run that and not install a gguf model via download. The performance gain by using ollama is astronomical, kudos to those folks!
-
-Just ensure ollama is installed from https://ollama.ai/download. Once you have done that ensure you have run the server using ollama serve. Lastly, run local_llama_v3.py and enjoy chatting with llama2 or with your docs. A lot more work to come here so bear with me!
+- Ollama integration for significant performance improvements
+- Uses nomic-embed-text and llama3:8b models (can be changed to your liking)
+- Upgraded to Haystack 2.0
+- Persistent Chroma vector database to enable re-use of previously updloaded docs
 
 ## Installation
 
-On windows you have to have Visual Studio with a C compiler installed. 
-Secondly you need a model, I used llama-2-7b-chat.Q4_K_M.gguf, however any gguf should work. 
-
-* Note GGUF is a new format introduced by the llama.cpp team on August 21st 2023. It is a replacement for GGML, which is no longer supported by llama.cpp.
-
-I downloaded the model here https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF
-Run pip install -r requirements.txt
+1. Install Ollama from https://ollama.ai/download
+2. Clone this repository
+3. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+4. Pull required Ollama models:
+   ```
+   ollama pull nomic-embed-text
+   ollama pull llama3:8b
+   ```
 
 ## Usage
 
-Use the command python -m streamlit run "path/to/project/local_llama.py". This will start the app in your browser. Once you have uploaded your files, just ask away!
+1. Start the Ollama server:
+   ```
+   ollama serve
+   ```
+2. Run the Streamlit app:
+   ```
+   python -m streamlit run local_llama_v3.py
+   ```
+3. Upload your documents and start chatting!
 
-CLI output as an example for inference time running on my alienware x14 with 3060:
+## How It Works
 
-|                                     TIMES                                                   |
-| :-----------------------------------------------------------------------------------------: |
-|/GPT4All-13B-snoozy.ggml.q4_0.bin                                                            |
-|llama_model_load_internal: format     = ggjt v2 (latest)                                     |
-|llama_model_load_internal: n_vocab    = 32000                                                |
-|llama_model_load_internal: n_ctx      = 512                                                  |
-|llama_print_timings:        load time = 21283.78 ms                                          |
-|llama_print_timings:      sample time =     3.08 ms /    13 runs   (    0.24 ms per token)   |
-|llama_print_timings: prompt eval time = 21283.70 ms /   177 tokens (  120.25 ms per token)   |
-|llama_print_timings:        eval time =  2047.03 ms /    12 runs   (  170.59 ms per token)   |
-|llama_print_timings:       total time = 24057.21 ms                                          |
+1. Document Indexing: Uploaded files are processed, split, and embedded using Ollama.
+2. Vector Storage: Embeddings are stored in a local Chroma vector database.
+3. Query Processing: User queries are embedded and relevant document chunks are retrieved.
+4. Response Generation: Ollama generates responses based on the retrieved context and chat history.
 
-
-## History
-
-Updated version to support streamlit native chat elements to abandon streamlit_chat.
-Updated to use gguf in compliance with llama_cpp no longer supporting ggml.
-
-## Credits
-
-The-Bloke and his model llama-2-7b-chat.Q4_K_M.gguf that I used for this project.
 
 ## License
 
-Apache 2.0
+This project is licensed under the Apache 2.0 License.
+
+## Acknowledgements
+
+- Ollama team for their excellent local LLM solution
+- Haystack for providing the RAG framework
+- The-Bloke for the GGUF models
