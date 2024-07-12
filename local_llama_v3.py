@@ -1,4 +1,5 @@
 import streamlit as st
+from ollama import generate
 from haystack import Pipeline
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.components.converters import PyPDFToDocument
